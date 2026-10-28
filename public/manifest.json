@@ -5,5 +5,5 @@
   "display": "standalone",
   "background_color": "#f4f6f5",
   "theme_color": "#128c5e",
-  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+  "icons": [{ "src": "gato-logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }]
 }

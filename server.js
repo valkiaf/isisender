@@ -50,6 +50,23 @@ function save() {
 }
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const onlyDigits = (s) => String(s || '').replace(/\D/g, '');
+// Normaliza un número: quita "00" inicial y agrega el código de país si falta (ej: 912345678 -> 56912345678)
+function normPhone(raw, cc) {
+  let d = onlyDigits(raw).replace(/^00/, '');
+  cc = onlyDigits(cc);
+  if (cc && !d.startsWith(cc) && d.length <= 10) d = cc + d.replace(/^0+/, '');
+  return d;
+}
+// Etiquetas como texto separado por comas, sin repetidos
+function normTags(t) {
+  const seen = new Set();
+  return String(t || '').split(',').map((x) => x.trim()).filter((x) => {
+    const k = x.toLowerCase();
+    if (!x || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).join(', ');
+}
 
 // ---------- Servidor web ----------
 const app = express();
@@ -440,7 +457,7 @@ app.post('/api/contacts', (req, res) => {
   const phone = onlyDigits(req.body.phone);
   if (phone.length < 8) return res.status(400).json({ error: 'Número inválido. Usa código de país (ej: 56912345678)' });
   if (db.contacts.some((c) => c.phone === phone)) return res.status(400).json({ error: 'Ese número ya existe' });
-  const c = { id: uid(), name: (req.body.name || '').trim() || phone, phone, tags: (req.body.tags || '').trim(), notes: (req.body.notes || '').trim(), createdAt: Date.now() };
+  const c = { id: uid(), name: (req.body.name || '').trim() || phone, phone, tags: normTags(req.body.tags), notes: (req.body.notes || '').trim(), createdAt: Date.now() };
   db.contacts.push(c);
   save();
   res.json(c);
@@ -455,7 +472,7 @@ app.put('/api/contacts/:id', (req, res) => {
   Object.assign(c, {
     name: (req.body.name ?? c.name).trim() || phone,
     phone,
-    tags: (req.body.tags ?? c.tags).trim(),
+    tags: normTags(req.body.tags ?? c.tags),
     notes: (req.body.notes ?? c.notes).trim(),
   });
   save();
@@ -480,12 +497,79 @@ app.post('/api/contacts/import', (req, res) => {
     const phone = onlyDigits(parts[phoneIdx]);
     if (db.contacts.some((c) => c.phone === phone)) { skipped++; continue; }
     const name = parts.filter((_, i) => i !== phoneIdx)[0] || phone;
-    const tags = parts.filter((_, i) => i !== phoneIdx)[1] || '';
+    const tags = normTags(parts.filter((_, i) => i !== phoneIdx)[1] || '');
     db.contacts.push({ id: uid(), name, phone, tags, notes: '', createdAt: Date.now() });
     added++;
   }
   save();
   res.json({ added, skipped });
+});
+
+// Importar filas ya leídas de un Excel/CSV: [{name, phone, tags}]
+app.post('/api/contacts/bulk', (req, res) => {
+  const rows = Array.isArray(req.body.rows) ? req.body.rows.slice(0, 5000) : [];
+  const extraTag = String(req.body.tag || '').trim();
+  let added = 0, updated = 0;
+  const invalid = [];
+  for (const r of rows) {
+    const phone = normPhone(r.phone, req.body.countryCode);
+    if (phone.length < 8 || phone.length > 15) { if (String(r.phone || '').trim()) invalid.push(String(r.phone)); continue; }
+    const tags = normTags([r.tags, extraTag].filter(Boolean).join(','));
+    const name = String(r.name || '').trim();
+    const existing = db.contacts.find((c) => c.phone === phone);
+    if (existing) {
+      // Si ya existe: suma etiquetas y completa el nombre si no tenía
+      const before = existing.tags + '|' + existing.name;
+      existing.tags = normTags(existing.tags + ',' + tags);
+      if (name && existing.name === existing.phone) existing.name = name;
+      if (before !== existing.tags + '|' + existing.name) updated++;
+      continue;
+    }
+    db.contacts.push({ id: uid(), name: name || phone, phone, tags, notes: String(r.notes || '').trim(), createdAt: Date.now() });
+    added++;
+  }
+  save();
+  res.json({ added, updated, invalid: invalid.length, invalidSamples: invalid.slice(0, 5) });
+});
+
+// Acciones sobre varios contactos: agregar/quitar etiqueta o borrar
+app.post('/api/contacts/batch', (req, res) => {
+  const ids = new Set(req.body.ids || []);
+  const tag = String(req.body.tag || '').trim();
+  let n = 0;
+  if (req.body.action === 'delete') {
+    const before = db.contacts.length;
+    db.contacts = db.contacts.filter((c) => !ids.has(c.id));
+    n = before - db.contacts.length;
+  } else if (tag && (req.body.action === 'addTag' || req.body.action === 'removeTag')) {
+    for (const c of db.contacts) {
+      if (!ids.has(c.id)) continue;
+      c.tags = req.body.action === 'addTag'
+        ? normTags(c.tags + ',' + tag)
+        : normTags(c.tags.split(',').filter((t) => t.trim().toLowerCase() !== tag.toLowerCase()).join(','));
+      n++;
+    }
+  } else return res.status(400).json({ error: 'Acción no válida' });
+  save();
+  res.json({ ok: true, count: n });
+});
+
+// ---------- API: plantillas de mensajes ----------
+db.settings.templates ||= [];
+app.get('/api/templates', (req, res) => res.json(db.settings.templates));
+app.post('/api/templates', (req, res) => {
+  const text = String(req.body.text || '').trim();
+  const title = String(req.body.title || '').trim() || text.slice(0, 30);
+  if (!text) return res.status(400).json({ error: 'La plantilla está vacía' });
+  const t = { id: uid(), title, text, createdAt: Date.now() };
+  db.settings.templates.push(t);
+  save();
+  res.json(t);
+});
+app.delete('/api/templates/:id', (req, res) => {
+  db.settings.templates = db.settings.templates.filter((t) => t.id !== req.params.id);
+  save();
+  res.json({ ok: true });
 });
 
 // ---------- API: chats ----------
