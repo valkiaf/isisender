@@ -1,0 +1,20 @@
+{
+  "name": "isisender",
+  "version": "1.0.0",
+  "description": "IsiSender - CRM para enviar y recibir mensajes de WhatsApp",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "baileys": "^7.0.0-rc14",
+    "express": "^5.3.0",
+    "pino": "^10.4.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

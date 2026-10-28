@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#128c5e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IsiSender">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>IsiSender</title>
+<link rel="icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #f4f6f5; --panel: #fff; --text: #1d2422; --muted: #6b7672; --line: #e2e7e5;
+    --accent: #128c5e; --accent-soft: #e3f4ec; --danger: #c43d3d; --in: #fff; --out: #d9f6e4;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111615; --panel: #1a2120; --text: #e6ecea; --muted: #8d9894; --line: #2b3432;
+      --accent: #2bb67c; --accent-soft: #173327; --danger: #e06363; --in: #232c2a; --out: #1c3d2d; }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body.locked header, body.locked main { display: none; }
+  .login { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 20px; }
+  .login .card { width: min(380px, 100%); }
+  .login .brand { font-size: 28px; margin-bottom: 4px; }
+  .access-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .access-box { border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .access-box h3 { margin: 0 0 6px; font-size: 15px; }
+  .access-box img { width: 160px; height: 160px; background: #fff; border-radius: 8px; display: block; margin: 8px 0; }
+  .url { font: 600 14px ui-monospace, Menlo, monospace; word-break: break-all; color: var(--accent); }
+  .switch { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; cursor: pointer; }
+  .switch input { width: 18px; height: 18px; }
+  .link-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .link-row .info { flex: 1; min-width: 200px; }
+  .link-row .url { font-size: 12px; }
+  body { margin: 0; font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+  .brand { font-weight: 700; font-size: 20px; letter-spacing: -.3px; }
+  .brand span { color: var(--accent); }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav button { background: none; border: 0; padding: 8px 14px; border-radius: 8px; color: var(--muted); font: inherit; cursor: pointer; position: relative; }
+  nav button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .pill { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 12px; text-align: center; margin-left: 4px; }
+  .conn { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #aaa; }
+  .dot.ok { background: var(--accent); } .dot.wait { background: #e0a526; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  section { display: none; } section.active { display: block; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  h2 { margin: 0 0 12px; font-size: 18px; }
+  p.hint { color: var(--muted); margin: 4px 0 12px; font-size: 14px; }
+  input, textarea, select { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--bg); color: var(--text); }
+  textarea { resize: vertical; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  .btn.danger { background: var(--danger); }
+  .btn.sm { padding: 6px 10px; font-size: 13px; }
+  .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 140px; }
+  .row > .btn { flex: 0 0 auto; }
+  .code { font: 700 34px/1 ui-monospace, Menlo, monospace; letter-spacing: 4px; background: var(--accent-soft); color: var(--accent); padding: 18px 24px; border-radius: 10px; display: inline-block; margin: 8px 0; }
+  ol.steps { padding-left: 20px; color: var(--muted); } ol.steps b { color: var(--text); }
+  .err { color: var(--danger); margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  td.actions { white-space: nowrap; text-align: right; }
+  .tag { display: inline-block; background: var(--accent-soft); color: var(--accent); padding: 1px 8px; border-radius: 10px; font-size: 12px; margin-right: 4px; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .toolbar input { flex: 1; min-width: 180px; }
+  .table-wrap { overflow-x: auto; }
+  /* Chats */
+  .chats { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 120px); height: calc(100dvh - 120px); min-height: 420px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .chat-list { border-right: 1px solid var(--line); overflow-y: auto; }
+  .chat-item { padding: 12px 14px; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 10px; align-items: center; }
+  .chat-item:hover, .chat-item.active { background: var(--accent-soft); }
+  .chat-item .info { flex: 1; min-width: 0; }
+  .chat-item .name { font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+  .chat-item .name small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .chat-item .preview { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; flex: 0 0 auto; }
+  .chat-view { display: flex; flex-direction: column; min-width: 0; }
+  .chat-head { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .chat-head .back { display: none; }
+  .msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+  .msg { max-width: 75%; padding: 8px 12px; border-radius: 10px; background: var(--in); border: 1px solid var(--line); white-space: pre-wrap; word-wrap: break-word; }
+  .msg.out { align-self: flex-end; background: var(--out); border-color: transparent; }
+  .msg .meta { font-size: 11px; color: var(--muted); text-align: right; margin-top: 2px; }
+  .composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+  .composer textarea { min-height: 44px; max-height: 140px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px 20px; }
+  /* Envío masivo */
+  .pick-list { max-height: 340px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+  .pick-list label { display: flex; gap: 10px; align-items: center; margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 14px; cursor: pointer; }
+  .pick-list input { width: auto; }
+  .progress { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 10px 0; }
+  .progress div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .log { max-height: 260px; overflow-y: auto; font-size: 13px; }
+  .log div { padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--text); padding: 20px; width: min(460px, 92vw); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 760px) {
+    input, textarea, select { font-size: 16px; }
+    header { padding: 10px 12px 0; gap: 8px; padding-top: max(10px, env(safe-area-inset-top)); }
+    .brand { order: 1; }
+    .conn { order: 2; margin-left: auto; width: auto; font-size: 12px; }
+    nav { order: 3; width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+    nav button { flex: 1; padding: 10px 6px; white-space: nowrap; border-radius: 8px 8px 0 0; }
+    main { padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+    .card { padding: 16px; }
+    .access-grid { grid-template-columns: 1fr; }
+    .chats { height: calc(100dvh - 130px); margin: -12px; border-radius: 0; border-left: 0; border-right: 0; }
+    .msg { max-width: 88%; }
+    td.actions .btn { padding: 6px 8px; }
+    th:nth-child(3), td:nth-child(3) { display: none; }
+    .grid2 { grid-template-columns: 1fr; }
+    .chats { grid-template-columns: 1fr; }
+    .chats.open .chat-list { display: none; }
+    .chats:not(.open) .chat-view { display: none; }
+    .chat-head .back { display: inline-flex; }
+    }
+</style>
+</head>
+<body class="locked">
+<div class="login" id="loginScreen" hidden>
+  <form class="card" id="loginForm">
+    <div class="brand">Isi<span>Sender</span></div>
+    <p class="hint" id="loginHint">Ingresa tu contraseña.</p>
+    <label>Contraseña</label>
+    <input type="password" id="loginPass" autocomplete="current-password" required>
+    <div id="loginRepeatWrap" hidden><label>Repite la contraseña</label><input type="password" id="loginPass2" autocomplete="new-password"></div>
+    <div class="err" id="loginErr"></div>
+    <div style="margin-top:14px"><button class="btn" style="width:100%;justify-content:center" id="loginBtn">Entrar</button></div>
+  </form>
+</div>
+<header>
+  <div class="brand">Isi<span>Sender</span></div>
+  <nav>
+    <button data-tab="conexion" class="active">Conexión</button>
+    <button data-tab="chats">Chats <span id="unreadPill" class="pill" hidden>0</span></button>
+    <button data-tab="contactos">Contactos</button>
+    <button data-tab="masivo">Envío masivo</button>
+  </nav>
+  <div class="conn"><span class="dot" id="connDot"></span><span id="connText">Desconectado</span></div>
+</header>
+
+<main>
+  <!-- CONEXIÓN -->
+  <section id="tab-conexion" class="active">
+    <div class="card" id="connCard"></div>
+    <div class="card" id="accessCard">
+      <h2>📱 Usar desde el teléfono u otro PC</h2>
+      <p class="hint">No hay que instalar nada: abre la dirección en el navegador (Chrome, Safari…) y entra con tu contraseña. Para tenerlo como app, en el teléfono usa “Agregar a pantalla de inicio”.</p>
+      <div class="access-grid">
+        <div class="access-box">
+          <h3>En la misma Wi-Fi</h3>
+          <div id="lanInfo" class="hint">Cargando…</div>
+        </div>
+        <div class="access-box">
+          <h3>Desde cualquier lugar (datos móviles)</h3>
+          <div id="netInfo" class="hint">Cargando…</div>
+        </div>
+      </div>
+      <div style="margin-top:14px"><button class="btn ghost sm" id="signOut">Cerrar sesión en este equipo</button></div>
+    </div>
+    <div class="card" id="linksCard" hidden>
+      <h2>🔗 Enlaces para clientes</h2>
+      <p class="hint">Crea un enlace y envíaselo a tu cliente: al abrirlo entra directo, sin contraseña. Quien tenga el enlace puede usar IsiSender completo, así que compártelo solo con quien corresponda. Puedes revocarlo cuando quieras.</p>
+      <form id="linkCreate" class="row">
+        <div><label>¿Para quién es?</label><input id="linkLabel" placeholder="Ej: Isidora"></div>
+        <button class="btn">Crear enlace</button>
+      </form>
+      <div id="linksList" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- CHATS -->
+  <section id="tab-chats">
+    <div class="chats" id="chatsBox">
+      <div class="chat-list" id="chatList"></div>
+      <div class="chat-view">
+        <div class="chat-head">
+          <button class="btn ghost sm back" id="chatBack">←</button>
+          <div class="avatar" id="chatAvatar">?</div>
+          <div style="flex:1;min-width:0"><div id="chatName" style="font-weight:600">Selecciona un chat</div><div id="chatPhone" class="hint" style="font-size:12px;color:var(--muted)"></div></div>
+          <button class="btn ghost sm" id="chatSaveContact" hidden>Guardar contacto</button>
+        </div>
+        <div class="msgs" id="msgs"><div class="empty">Aquí verás las conversaciones. Los mensajes que te respondan aparecen en tiempo real.</div></div>
+        <form class="composer" id="composer" hidden>
+          <textarea id="composerText" rows="1" placeholder="Escribe un mensaje… (Enter envía, Shift+Enter salto de línea)"></textarea>
+          <button class="btn" type="submit">Enviar</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACTOS -->
+  <section id="tab-contactos">
+    <div class="grid2">
+      <div class="card">
+        <h2>Agregar contacto</h2>
+        <form id="contactForm">
+          <label>Nombre</label><input name="name" placeholder="Ej: María Pérez">
+          <label>Número de WhatsApp (con código de país)</label><input name="phone" placeholder="Ej: 56912345678" required>
+          <label>Etiquetas (opcional)</label><input name="tags" placeholder="Ej: cliente, vip">
+          <div style="margin-top:14px"><button class="btn">Agregar</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Importar varios</h2>
+        <p class="hint">Pega una lista (puedes copiarla desde Excel). Una persona por línea: <b>Nombre, Número</b> — opcional una etiqueta: <b>Nombre, Número, Etiqueta</b>.</p>
+        <textarea id="importText" rows="6" placeholder="María Pérez, 56912345678&#10;Juan Soto, 56987654321, cliente"></textarea>
+        <div style="margin-top:10px"><button class="btn" id="importBtn">Importar</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Contactos <span id="contactCount" class="tag">0</span></h2>
+        <input id="contactSearch" placeholder="Buscar por nombre, número o etiqueta…">
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Nombre</th><th>Número</th><th>Etiquetas</th><th></th></tr></thead>
+        <tbody id="contactRows"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ENVÍO MASIVO -->
+  <section id="tab-masivo">
+    <div class="grid2">
+      <div class="card">
+        <h2>1. Elige destinatarios</h2>
+        <div class="toolbar">
+          <input id="pickSearch" placeholder="Filtrar por nombre o etiqueta…">
+          <button class="btn ghost sm" id="pickAll">Todos</button>
+          <button class="btn ghost sm" id="pickNone">Ninguno</button>
+        </div>
+        <div class="pick-list" id="pickList"></div>
+        <p class="hint"><b id="pickCount">0</b> seleccionados</p>
+      </div>
+      <div class="card">
+        <h2>2. Escribe el mensaje</h2>
+        <p class="hint">Personaliza con <b>{nombre}</b> o <b>{primer_nombre}</b>.</p>
+        <textarea id="bulkText" rows="7" placeholder="Hola {primer_nombre}, te escribo para…"></textarea>
+        <label>Pausa aleatoria entre mensajes (segundos)</label>
+        <div class="row">
+          <input id="minDelay" type="number" min="3" value="8" title="Mínimo">
+          <input id="maxDelay" type="number" min="3" value="20" title="Máximo">
+        </div>
+        <p class="hint">Las pausas imitan un envío humano y reducen el riesgo de que WhatsApp bloquee tu número. Con 50 personas tarda ~10–15 min.</p>
+        <label>Vista previa</label>
+        <div class="msg out" id="bulkPreview" style="max-width:100%">…</div>
+        <div style="margin-top:14px"><button class="btn" id="bulkStart">Enviar a seleccionados</button></div>
+      </div>
+    </div>
+    <div class="card" id="campaignCard" hidden>
+      <div class="toolbar"><h2 style="margin:0;flex:1" id="campaignTitle">Enviando…</h2><button class="btn danger sm" id="bulkCancel">Detener</button></div>
+      <div class="progress"><div id="campaignBar"></div></div>
+      <p class="hint" id="campaignInfo"></p>
+      <div class="log" id="campaignLog"></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="editDialog">
+  <form id="editForm" method="dialog">
+    <h2>Editar contacto</h2>
+    <input type="hidden" name="id">
+    <label>Nombre</label><input name="name">
+    <label>Número</label><input name="phone">
+    <label>Etiquetas</label><input name="tags">
+    <label>Notas</label><textarea name="notes" rows="3"></textarea>
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button class="btn ghost" value="cancel" formnovalidate>Cancelar</button>
+      <button class="btn" value="ok">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

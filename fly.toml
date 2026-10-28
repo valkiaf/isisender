@@ -1,0 +1,27 @@
+# Configuración para Fly.io: IsiSender se enciende cuando alguien abre el enlace
+# y se apaga solo tras IDLE_MINUTES sin uso (pagas solo el tiempo encendido).
+app = "isisender"          # cámbialo si ese nombre ya está tomado
+primary_region = "gru"     # São Paulo (el más cercano a Sudamérica)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATA_DIR = "/data"
+  IDLE_MINUTES = "10"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"   # el apagado lo decide IsiSender (no corta envíos en curso)
+  auto_start_machines = true   # se enciende al abrir el enlace
+  min_machines_running = 0
+
+[[mounts]]
+  source = "isisender_data"    # disco que guarda sesión de WhatsApp, contactos y mensajes
+  destination = "/data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
